@@ -1,6 +1,6 @@
 from src.readConfig import Readconfig
 from src.global_parameter import project_path, monkey_log_path
-import os, time, subprocess, re
+import os, subprocess, re,time
 
 
 class Runmonkey():
@@ -8,6 +8,7 @@ class Runmonkey():
         self.read_config = Readconfig()
         self.apk_path = project_path + "\\apk\\" + self.read_config.get_config_values("appinfo","apk_name")
         self.log_path = monkey_log_path
+        self.package_name = self.get_package_name()
 
     def get_aapt(self):
         if "ANDROID_HOME" in os.environ:
@@ -43,30 +44,52 @@ class Runmonkey():
         except:
             print("请连接手机")
 
-    def install_apk(self):
-        print("Ready to start installing apk")
-        cmd = "adb -s %s install -r %s"%(self.deviceid, self.apk_path)
+    def install_apk(self,deviceid):
+        print("开始安装APP")
+        cmd = "adb -s %s install -r %s"%(deviceid, self.apk_path)
         os.popen(cmd)
+        print("APP安装结束")
 
-    def kill_test_app(self):
-        cmd = "adb -s %s shell am force-stop %s"%(self.deviceid, self.package_name)
-        print(cmd)
+    def kill_test_app(self,deviceid):
+        print("开始杀掉APP进程")
+        cmd = "adb -s %s shell am force-stop %s"%(deviceid, self.package_name)
         os.popen(cmd)
+        print("APP进程杀掉完成")
+
+    def monkey_run(self, deviceid, exe_count):
+        print("开始运行monkey测试")
+        current_time = time.strftime('%Y%m%d%H%M%S', time.localtime(time.time()))
+        monky_log = self.log_path + current_time + deviceid + exe_count+ ".txt"
+        print(monky_log)
+        throttle = self.read_config.get_config_values("monkeyinfo","throttle")
+        touch = self.read_config.get_config_values("monkeyinfo","touch")
+        motion = self.read_config.get_config_values("monkeyinfo","motion")
+        nav = self.read_config.get_config_values("monkeyinfo","nav")
+        trackball = self.read_config.get_config_values("monkeyinfo","trackball")
+        majornav = self.read_config.get_config_values("monkeyinfo","majornav")
+        appswitch = self.read_config.get_config_values("monkeyinfo","appswitch")
+        syskeys = self.read_config.get_config_values("monkeyinfo","syskeys")
+        log = self.read_config.get_config_values("monkeyinfo","log")
+        click = self.read_config.get_config_values("monkeyinfo","click")
+        monkey_cmd = "adb -s %s shell monkey -p %s --throttle %s --pct-touch %s --pct-motion %s --pct-nav %s " \
+                     "--pct-trackball %s --pct-majornav %s --ignore-crashes --ignore-timeouts --ignore-security-exceptions " \
+                     "--pct-appswitch " \
+                     "%s --pct-syskeys %s %s %s >%s 2>&1 1" % (deviceid, self.package_name,throttle,touch,motion,nav,trackball,majornav,appswitch,syskeys,log,click, monky_log)
+        os.popen(monkey_cmd)
+        print("monkey测试运行完成")
 
     def full_monkey(self):
+        exe_count = int(self.read_config.get_config_values("baseinfo","exe_count"))-1
         device_ids = self.get_device_id()
-        for device_id in device_ids:
-            self.install_apk()
-            monkey_cmd = "adb -s %s shell monkey -p %s --throttle 100 --pct-touch 70 --pct-motion 5 --pct-nav 0 " \
-                     "--pct-trackball 0 --pct-majornav 5 --ignore-crashes --ignore-timeouts --pct-appswitch " \
-                     "10 --pct-syskeys 5 -v-v-v 100 >%s"%(self.deviceid, self.package_name, self.log_path)
-        print(monkey_cmd)
-        self.kill_test_app()
-
-
+        while(exe_count):
+            for device_id in device_ids:
+                print("执行手机,%s" % device_id)
+                self.install_apk(device_id)
+                self.monkey_run(device_id, str(exe_count))
+                self.kill_test_app(device_id)
+            exe_count -= 1
 
 
 if __name__ == '__main__':
     runmonkey = Runmonkey()
-    print(runmonkey.get_package_name())
-    runmonkey.get_device_id()
+    runmonkey.full_monkey()
