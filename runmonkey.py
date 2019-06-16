@@ -1,6 +1,6 @@
 from src.readConfig import Readconfig
 from src.global_parameter import project_path, monkey_log_path
-import os, subprocess, re,time
+import os, subprocess, re,time,threading
 
 
 class Runmonkey():
@@ -9,6 +9,7 @@ class Runmonkey():
         self.apk_path = project_path + "\\apk\\" + self.read_config.get_config_values("appinfo","apk_name")
         self.log_path = monkey_log_path
         self.package_name = self.get_package_name()
+        self.exx_count = self.read_config.get_config_values("baseinfo","exe_count")
 
     def get_aapt(self):
         if "ANDROID_HOME" in os.environ:
@@ -56,10 +57,10 @@ class Runmonkey():
         os.popen(cmd)
         print("APP进程杀掉完成")
 
-    def monkey_run(self, deviceid, exe_count):
+    def monkey_run(self, deviceid):
         print("开始运行monkey测试")
         current_time = time.strftime('%Y%m%d%H%M%S', time.localtime(time.time()))
-        monky_log = self.log_path + current_time + deviceid + exe_count+ ".txt"
+        monky_log = self.log_path + current_time + deviceid + ".txt"
         print(monky_log)
         throttle = self.read_config.get_config_values("monkeyinfo","throttle")
         touch = self.read_config.get_config_values("monkeyinfo","touch")
@@ -76,19 +77,26 @@ class Runmonkey():
                      "--pct-appswitch " \
                      "%s --pct-syskeys %s %s %s >%s 2>&1 1" % (deviceid, self.package_name,throttle,touch,motion,nav,trackball,majornav,appswitch,syskeys,log,click, monky_log)
         os.popen(monkey_cmd)
+        self.kill_test_app(deviceid)
         print("monkey测试运行完成")
 
-    def full_monkey(self):
-        exe_count = int(self.read_config.get_config_values("baseinfo","exe_count"))-1
-        device_ids = self.get_device_id()
-        for device_id in device_ids:
-            self.install_apk(device_id)
-        while(exe_count):
-            for device_id in device_ids:
-                print("执行手机,%s" % device_id)
-                self.monkey_run(device_id, str(exe_count))
-                self.kill_test_app(device_id)
+    def amount_monkey_run(self,device_id):
+        exe_count = int(self.read_config.get_config_values("baseinfo", "exe_count")) - 1
+        while (exe_count):
+            self.monkey_run(device_id)
             exe_count -= 1
+
+
+    def full_monkey(self):
+        device_ids = self.get_device_id()
+        threads = []
+        for device_id in device_ids:
+            thread_n = threading.Thread(target=self.amount_monkey_run, args=(device_id))
+            threads.append(thread_n)
+
+        for thread in threads:
+            thread.daemon = True  # 设置守护线程。主线程将在所有非守护线程退出之后才退出。
+            thread.start()
 
 
 if __name__ == '__main__':
