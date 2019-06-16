@@ -81,10 +81,11 @@ class Runmonkey():
     def full_monkey(self):
         exe_count = int(self.read_config.get_config_values("baseinfo","exe_count"))-1
         device_ids = self.get_device_id()
+        for device_id in device_ids:
+            self.install_apk(device_id)
         while(exe_count):
             for device_id in device_ids:
                 print("执行手机,%s" % device_id)
-                self.install_apk(device_id)
                 self.monkey_run(device_id, str(exe_count))
                 self.kill_test_app(device_id)
             exe_count -= 1
