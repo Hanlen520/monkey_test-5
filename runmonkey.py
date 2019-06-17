@@ -59,8 +59,9 @@ class Runmonkey():
 
     def monkey_run(self, deviceid):
         print("开始运行monkey测试")
-        current_time = time.strftime('%Y%m%d%H%M%S', time.localtime(time.time()))
-        monky_log = self.log_path + current_time + deviceid + ".txt"
+        current_time_n = time.strftime('%Y%m%d%H%M%S', time.localtime(time.time()))
+        print(current_time_n)
+        monky_log = self.log_path + current_time_n + deviceid + ".txt"
         print(monky_log)
         throttle = self.read_config.get_config_values("monkeyinfo","throttle")
         touch = self.read_config.get_config_values("monkeyinfo","touch")
@@ -80,25 +81,44 @@ class Runmonkey():
         self.kill_test_app(deviceid)
         print("monkey测试运行完成")
 
-    def amount_monkey_run(self,device_id):
+    def amount_monkey_run(self, device_id):
+        print("多次运行开始")
         exe_count = int(self.read_config.get_config_values("baseinfo", "exe_count")) - 1
+        print(exe_count)
         while (exe_count):
             self.monkey_run(device_id)
             exe_count -= 1
 
-
     def full_monkey(self):
         device_ids = self.get_device_id()
+        print(device_ids)
+
+        # 单线程运行
+        # for device_id in device_ids:
+        #     self.amount_monkey_run(device_id)
+
+        # 多线程运行
         threads = []
         for device_id in device_ids:
-            thread_n = threading.Thread(target=self.amount_monkey_run, args=(device_id))
-            threads.append(thread_n)
+            print(device_id)
+            t = threading.Thread(target=self.amount_monkey_run, args=(device_id,))
+            threads.append(t)
 
-        for thread in threads:
-            thread.daemon = True  # 设置守护线程。主线程将在所有非守护线程退出之后才退出。
-            thread.start()
+        for t in threads:
+            t.daemon = True  # 设置守护线程。主线程将在所有非守护线程退出之后才退出。
+            t.start()
 
 
 if __name__ == '__main__':
     runmonkey = Runmonkey()
+    start_time = time.time()
+    current_time = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(time.time()))
+    print("开始时间：%s" % current_time)
+
     runmonkey.full_monkey()
+
+    end_time = time.time()
+    current_time = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(time.time()))
+    print("结束时间：%s" % current_time)
+    total_time = end_time - start_time
+    print("总耗时：{0:.5f}秒".format(total_time))
