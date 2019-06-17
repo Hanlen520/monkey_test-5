@@ -1,6 +1,7 @@
 from src.readConfig import Readconfig
 from src.global_parameter import project_path, monkey_log_path
 import os, subprocess, re,time,threading
+from Login import Login
 
 
 class Runmonkey():
@@ -10,6 +11,7 @@ class Runmonkey():
         self.log_path = monkey_log_path
         self.package_name = self.get_package_name()
         self.exx_count = self.read_config.get_config_values("baseinfo","exe_count")
+        self.login = Login()
 
     def get_aapt(self):
         if "ANDROID_HOME" in os.environ:
@@ -61,6 +63,8 @@ class Runmonkey():
         print("开始运行monkey测试")
         current_time_n = time.strftime('%Y%m%d%H%M%S', time.localtime(time.time()))
         print(current_time_n)
+        # 用户登录
+        self.login.login()
         monky_log = self.log_path + current_time_n + deviceid + ".txt"
         print(monky_log)
         throttle = self.read_config.get_config_values("monkeyinfo","throttle")
